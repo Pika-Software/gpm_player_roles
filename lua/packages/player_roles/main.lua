@@ -102,6 +102,10 @@ do
             function PLAYER:AddRole( name )
                 local role = Get( name )
                 assert( role ~= nil, "Role does not exist!" )
+                if (bit_band( self:GetRolesInt(), role.id ) == role.id) then
+                    return
+                end
+
                 self:SetRolesInt( bit_bor( self:GetRolesInt(), role.id ) )
             end
         end
@@ -136,7 +140,11 @@ do
         -- Add new role here
         function Add( name, color )
             assert( type( name ) == "string", "bad argument #1 (string expected)" )
-            assert( Get( name ) == nil, "A role '" .. name .. "' already exists!" )
+
+            if (Get( name ) ~= nil) then
+                print( "A role '" .. name .. "' already exists!" )
+                return
+            end
 
             local id = 1
             for name, role in pairs( list ) do
