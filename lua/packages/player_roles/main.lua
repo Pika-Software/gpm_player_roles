@@ -19,26 +19,12 @@ function Set( name, val )
     list[ name ] = val
 end
 
-if (SERVER) then
-
-    util.AddNetworkString( "gpm.player_roles" )
-
-    -- Role remove
-    function Remove( name )
-        local role = Get( name )
-        assert( role ~= nil, "Role does not exist!" )
-        role:Remove()
+function Remove( name )
+    local role = Get( name )
+    if (role == nil) then
+        return
     end
-
-end
-
-if (CLIENT) then
-
-    -- Recive server role list
-    net.Receive("gpm.player_roles", function()
-        list = net.ReadTable()
-    end)
-
+    role:Remove()
 end
 
 do
@@ -53,7 +39,10 @@ do
 
     function PLAYER:GetRole( name )
         local role = Get( name )
-        assert( role ~= nil, "Role does not exist!" )
+        if (role == nil) then
+            return
+        end
+
         if (bit_band( self:GetRolesInt(), role.id ) == role.id) then
             return role
         end
@@ -101,7 +90,10 @@ do
             local bit_bor = bit.bor
             function PLAYER:AddRole( name )
                 local role = Get( name )
-                assert( role ~= nil, "Role does not exist!" )
+                if (role == nil) then
+                    return
+                end
+
                 if (bit_band( self:GetRolesInt(), role.id ) == role.id) then
                     return
                 end
@@ -114,7 +106,10 @@ do
             local bit_bnot = bit.bnot
             function PLAYER:TakeRole( name )
                 local role = Get( name )
-                assert( role ~= nil, "Role does not exist!" )
+                if (role == nil) then
+                    return
+                end
+
                 self:SetRolesInt( bit_band( self:GetRolesInt(), bit_bnot( role.id ) ) )
             end
         end
@@ -128,12 +123,15 @@ do
     local ROLE = {}
     ROLE.__index = ROLE
 
+    function ROLE:__tostring()
+        return string.format( "Role [%s][%s]", self:GetID(), self:GetName() )
+    end
+
     do
 
         local player_GetHumans = player.GetHumans
         local setmetatable = setmetatable
         local color_white = color_white
-        local IsColor = IsColor
         local pairs = pairs
         local type = type
 
@@ -141,33 +139,32 @@ do
         function Add( name, color )
             assert( type( name ) == "string", "bad argument #1 (string expected)" )
 
-            if (Get( name ) ~= nil) then
-                print( "A role '" .. name .. "' already exists!" )
-                return
+            local role = Get( name )
+            if (role ~= nil) then
+                -- print( "A role '" .. name .. "' already exists!" )
+                role:SetColor( color )
+                return role
             end
 
+            -- max 31 roles (32 bit in glua)
             local id = 1
             for name, role in pairs( list ) do
                 if (role.id >= id) then
-                    id = role.id + 1
+                    id = role.id * 2
                 end
             end
 
-            local role = setmetatable({
+            local new = setmetatable({
                 id = id,
                 name = name,
-                color = IsColor(color) and color or color_white
+                r = color.r or 25,
+                g = color.g or 25,
+                b = color.b or 25
             }, ROLE )
 
-            Set( name, role )
+            Set( name, new )
 
-            if ( #player_GetHumans() > 0 ) then
-                net.Start("gpm.player_roles")
-                    net.WriteTable( list )
-                net.Broadcast()
-            end
-
-            return role
+            return new
         end
 
     end
@@ -186,15 +183,14 @@ do
 
         -- Colors :D
         function ROLE:GetColor()
-            return self.color
+            return Color( self.r, self.g, self.b, self.a )
         end
 
-        do
-            local IsColor = IsColor
-            function ROLE:SetColor( color )
-                assert( IsColor( color ), "bad argument #1 (Color expected)" )
-                self.color = color
-            end
+        function ROLE:SetColor( color )
+            self.r = color.r
+            self.g = color.g
+            self.b = color.b
+            self.a = color.a or 255
         end
 
         -- Get all players with that role
@@ -231,18 +227,7 @@ do
                 for num, ply in ipairs( self:GetPlayers() ) do
                     ply:TakeRole( name )
                 end
-
-                net.Start("gpm.player_roles")
-                    net.WriteTable( list )
-                net.Broadcast()
             end
-
-            -- Sync new clients with server
-            hook.Add("PlayerInitialized", "gpm.player_roles", function( ply )
-                net.Start("gpm.player_roles")
-                    net.WriteTable( list )
-                net.Send( ply )
-            end)
 
         end
 
