@@ -24,6 +24,7 @@ function Remove( name )
     if (role == nil) then
         return
     end
+
     role:Remove()
 end
 

@@ -2,7 +2,7 @@ return {
     name = "Player Roles",
     description = "Player role system like in Discord.",
     author = "PrikolMen:-b",
-    version = "1.0.2",
+    version = "1.1.3",
     license = "MIT",
 
     dependencies = {
